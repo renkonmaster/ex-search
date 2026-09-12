@@ -1,0 +1,142 @@
+[data-ex-search-panel] {
+  z-index: 1;
+  display: grid;
+  gap: 0.5rem;
+  max-height: min(45vh, 28rem);
+  margin: 0 1rem 0.75rem;
+  padding: 0.75rem;
+  overflow: auto;
+  border: 1px solid rgb(128 128 128 / 35%);
+  border-radius: 0.5rem;
+  color: inherit;
+  background: Canvas;
+  background: color-mix(in srgb, Canvas 94%, transparent);
+  box-shadow: 0 0.4rem 1rem rgb(0 0 0 / 12%);
+  font: inherit;
+}
+
+[data-ex-search-heading] {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+[data-ex-search-heading] span,
+[data-ex-search-status],
+[data-ex-search-suggestion] small {
+  color: color-mix(in srgb, currentColor 68%, transparent);
+  font-size: 0.78rem;
+}
+
+[data-ex-search-completion]:not(:empty)::before {
+  content: "Tab 補完: ";
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+[data-ex-search-suggestions] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.35rem;
+}
+
+[data-ex-search-suggestion] {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  overflow: hidden;
+  border: 1px solid rgb(128 128 128 / 30%);
+  border-radius: 0.35rem;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+[data-ex-search-suggestion]:hover,
+[data-ex-search-suggestion]:focus-visible {
+  border-color: #4899f9;
+  outline: none;
+  background: rgb(72 153 249 / 12%);
+}
+
+[data-ex-search-filters] summary {
+  padding: 0.3rem 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-ex-search-filter-grid] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(8rem, 1fr));
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+[data-ex-search-filter-grid] label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+}
+
+[data-ex-search-filter-grid] input,
+[data-ex-search-filter-grid] select,
+[data-ex-search-filter-actions] button {
+  min-height: 2rem;
+  border: 1px solid rgb(128 128 128 / 40%);
+  border-radius: 0.3rem;
+  color: inherit;
+  background: Canvas;
+  font: inherit;
+}
+
+[data-ex-search-filter-actions] {
+  display: flex;
+  gap: 0.4rem;
+  align-items: end;
+}
+
+[data-ex-search-filter-actions] button {
+  padding: 0 0.7rem;
+  cursor: pointer;
+}
+
+[data-ex-search-status] {
+  min-height: 1.2em;
+  margin: 0;
+}
+
+mark[data-ex-search-highlight='true'] {
+  padding: 0 0.08em;
+  border-radius: 0.15em;
+  color: inherit;
+  background: #ffd84d;
+  box-shadow: 0 0 0 1px rgb(120 80 0 / 15%);
+}
+
+[data-ex-search-relevance-list='true'] {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  mark[data-ex-search-highlight='true'] {
+    background: #8a6500;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-ex-search-panel] {
+    max-height: 52vh;
+    margin-inline: 0.5rem;
+  }
+
+  [data-ex-search-filter-grid] {
+    grid-template-columns: 1fr;
+  }
+}

@@ -69,7 +69,10 @@
 
   const hasExtensionAttribute = element =>
     [...(element?.attributes ?? [])].some(attribute =>
-      attribute.name.startsWith('data-ex-search-')
+      attribute.name.startsWith('data-ex-search-') &&
+      attribute.name !== 'data-ex-search-local-score' &&
+      attribute.name !== 'data-ex-search-relevance-list' &&
+      attribute.name !== 'data-ex-search-native-results'
     )
 
   const shouldSkipText = (node, boundary, skipHighlight = true) => {
