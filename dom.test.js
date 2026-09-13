@@ -6,6 +6,10 @@ const {
   findSearchInput,
   setNativeInputValue,
   findResultCards,
+  findNativeSearchSuggestion,
+  findNativeSortSelector,
+  findNativeSortOption,
+  readNativeSortValue,
   unwrapHighlights,
   highlightTerms,
   scoreResultCard,
@@ -70,6 +74,48 @@ test('discovers only wrappers in a semantic search-result list', () => {
   const cards = findResultCards(dom.window.document)
   assert.equal(cards.length, 2)
   assert.deepEqual(cards.map(card => card.textContent), ['one', 'two'])
+})
+
+test('finds only the native search suggestion immediately after the extension panel', () => {
+  const dom = new JSDOM(`
+    <div id="palette">
+      <section data-ex-search-panel></section>
+      <div id="native-suggestion">
+        <div class="_header_hash">検索オプション</div>
+      </div>
+      <div class="_header_hash">検索オプション</div>
+    </div>
+  `)
+  const panel = dom.window.document.querySelector('[data-ex-search-panel]')
+
+  assert.equal(findNativeSearchSuggestion(panel).id, 'native-suggestion')
+  assert.equal(findNativeSearchSuggestion(panel.previousElementSibling), null)
+})
+
+test('finds the native sort selector and maps its stable option labels', () => {
+  const dom = new JSDOM(`
+    <div id="palette">
+      <section data-ex-search-panel></section>
+      <div id="native-result">
+        <div id="native-sort" class="_container_hash">
+          <div class="_valueContainer_hash">新しい順</div>
+          <div class="_selectorContainer_hash">
+            <div class="_itemContainer_hash">新しい順</div>
+            <div class="_itemContainer_hash">古い順</div>
+            <div class="_itemContainer_hash">最近更新された順</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `)
+  const panel = dom.window.document.querySelector('[data-ex-search-panel]')
+  const selector = findNativeSortSelector(panel)
+
+  assert.equal(selector.container.id, 'native-sort')
+  assert.equal(readNativeSortValue(selector), 'createdAt')
+  assert.equal(findNativeSortOption(selector, '-createdAt').textContent.trim(), '古い順')
+  assert.equal(findNativeSortOption(selector, 'updatedAt').textContent.trim(), '最近更新された順')
+  assert.equal(findNativeSortOption(selector, 'unknown'), null)
 })
 
 test('scores eligible text and applies stable visible-page CSS ordering', () => {

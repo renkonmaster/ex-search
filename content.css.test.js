@@ -31,6 +31,8 @@ test('content styles consume traQ theme variables for visible color roles', () =
   assert.doesNotMatch(css, /border-color:\s*#4899f9;/)
   assert.doesNotMatch(css, /background:\s*#ffd84d;/)
   assert.doesNotMatch(css, /background:\s*#8a6500;/)
+  assert.match(css, /data-ex-search-native-suggestion-hidden/)
+  assert.match(css, /data-ex-search-native-sort-hidden/)
 })
 
 test('highlight marks read Markdown theme variables outside the panel scope', () => {

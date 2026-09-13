@@ -199,6 +199,93 @@ test('app lifecycle mounts once, batches mutations, follows input replacement, a
   assert.equal(dom.window.document.querySelector('#palette').hasAttribute('data-ex-search-host'), false)
 })
 
+test('hides native search suggestions and restores them when stopped', async () => {
+  FakeObserver.instances = []
+  const dom = new JSDOM(`
+    <div id="palette">
+      <div id="input-component"><div id="input-row"><input placeholder="メッセージを検索"></div></div>
+      <hr id="separator">
+      <div id="native-suggestion"><div class="_header_hash">検索オプション</div></div>
+    </div>
+  `, { url: 'https://q.trap.jp/channels/team/dev' })
+  const storage = createMemoryStorage()
+  const app = createExSearchApp({
+    document: dom.window.document,
+    location: dom.window.location,
+    storage,
+    MutationObserver: FakeObserver,
+    logger: { warn() {}, error() {} },
+    Core,
+    Dom
+  })
+
+  await app.start()
+  const document = dom.window.document
+  const nativeSuggestion = document.querySelector('#native-suggestion')
+  assert.equal(nativeSuggestion.dataset.exSearchNativeSuggestionHidden, 'true')
+  assert.equal(document.querySelector('#palette').dataset.exSearchNativeSuggestionHidden, 'true')
+
+  app.stop()
+  assert.equal(nativeSuggestion.hasAttribute('data-ex-search-native-suggestion-hidden'), false)
+  assert.equal(document.querySelector('#palette').hasAttribute('data-ex-search-native-suggestion-hidden'), false)
+})
+
+test('owns server sort choices while forwarding them to the hidden native selector', async () => {
+  FakeObserver.instances = []
+  const dom = new JSDOM(`
+    <div id="palette">
+      <div id="input-component"><div id="input-row"><input placeholder="メッセージを検索" value="release"></div></div>
+      <hr id="separator">
+      <div id="native-result">
+        <div id="native-sort" class="_container_hash">
+          <div class="_valueContainer_hash">新しい順</div>
+          <div class="_selectorContainer_hash">
+            <div class="_itemContainer_hash">新しい順</div>
+            <div class="_itemContainer_hash">古い順</div>
+            <div class="_itemContainer_hash">最近更新された順</div>
+          </div>
+        </div>
+        <div class="_resultList_hash">
+          <div class="_elementContainer_hash">release once</div>
+        </div>
+      </div>
+    </div>
+  `, { url: 'https://q.trap.jp/channels/team/dev' })
+  const clicked = []
+  for (const item of dom.window.document.querySelectorAll('._itemContainer_hash')) {
+    item.addEventListener('click', () => clicked.push(item.textContent.trim()))
+  }
+  const scheduler = createScheduler()
+  const app = createExSearchApp({
+    document: dom.window.document,
+    location: dom.window.location,
+    storage: createMemoryStorage(),
+    MutationObserver: FakeObserver,
+    setTimeout: callback => scheduler.setTimeout(callback),
+    clearTimeout: id => scheduler.clearTimeout(id),
+    logger: { warn() {}, error() {} },
+    Core,
+    Dom
+  })
+
+  await app.start()
+  const document = dom.window.document
+  const nativeSort = document.querySelector('#native-sort')
+  const serverOrdering = document.querySelector('[data-ex-search-server-ordering]')
+  assert.equal(nativeSort.dataset.exSearchNativeSortHidden, 'true')
+  assert.deepEqual([...serverOrdering.options].map(option => option.textContent), [
+    '新しい順', '古い順', '最近更新された順'
+  ])
+
+  serverOrdering.value = '-createdAt'
+  serverOrdering.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  scheduler.flush()
+  assert.deepEqual(clicked, ['古い順'])
+
+  app.stop()
+  assert.equal(nativeSort.hasAttribute('data-ex-search-native-sort-hidden'), false)
+})
+
 test('stop during asynchronous startup does not leave observers or subscriptions', async () => {
   FakeObserver.instances = []
   const dom = searchFixture()
