@@ -151,7 +151,22 @@
       ordering.append(option)
     }
     orderingLabel.append(orderingText, ordering)
-    heading.append(title, note, orderingLabel)
+    const serverOrderingLabel = setData(document.createElement('label'), 'server-ordering-control')
+    const serverOrderingText = setData(document.createElement('span'), 'server-ordering-label')
+    serverOrderingText.textContent = '検索結果の順番'
+    const serverOrdering = setData(document.createElement('select'), 'server-ordering')
+    for (const [value, text] of [
+      ['createdAt', '新しい順'],
+      ['-createdAt', '古い順'],
+      ['updatedAt', '最近更新された順']
+    ]) {
+      const option = setData(document.createElement('option'), 'server-ordering-option')
+      option.value = value
+      option.textContent = text
+      serverOrdering.append(option)
+    }
+    serverOrderingLabel.append(serverOrderingText, serverOrdering)
+    heading.append(title, note, serverOrderingLabel, orderingLabel)
 
     const completion = setData(document.createElement('span'), 'completion')
     completion.setAttribute('aria-label', 'Tab補完候補')
@@ -272,6 +287,9 @@
     let currentCompletion = ''
     let currentSuggestions = []
     let currentOrdering = settings.defaultOrdering
+    let currentServerOrdering = 'createdAt'
+    let pendingServerOrdering = null
+    let nativeSortContainer = null
     let cleanInputListeners = () => {}
     let unsubscribeSettings = () => {}
     let unsubscribeHistory = () => {}
@@ -287,6 +305,90 @@
     const cardId = card => {
       if (!cardIds.has(card)) cardIds.set(card, nextCardId++)
       return cardIds.get(card)
+    }
+
+    const reconcileNativeSearchUi = () => {
+      const nativeSuggestion = Dom.findNativeSearchSuggestion(panel)
+      const nativeSort = Dom.findNativeSortSelector(panel)
+      const activeSuggestion = nativeSuggestion
+      const activeSortContainer = nativeSort?.container ?? null
+
+      for (const element of document.querySelectorAll(
+        '[data-ex-search-native-suggestion-hidden]'
+      )) {
+        if (element !== activeSuggestion) {
+          element.removeAttribute('data-ex-search-native-suggestion-hidden')
+        }
+      }
+      for (const element of document.querySelectorAll(
+        '[data-ex-search-native-sort-hidden]'
+      )) {
+        if (element !== activeSortContainer) {
+          element.removeAttribute('data-ex-search-native-sort-hidden')
+        }
+      }
+
+      if (activeSuggestion) {
+        activeSuggestion.setAttribute('data-ex-search-native-suggestion-hidden', 'true')
+      }
+      if (activeSortContainer) {
+        activeSortContainer.setAttribute('data-ex-search-native-sort-hidden', 'true')
+      }
+      if (panelHost) {
+        if (activeSuggestion) {
+          panelHost.setAttribute('data-ex-search-native-suggestion-layout', 'compact')
+        } else {
+          panelHost.removeAttribute('data-ex-search-native-suggestion-layout')
+        }
+      }
+
+      if (activeSortContainer !== nativeSortContainer) {
+        nativeSortContainer = activeSortContainer
+        if (
+          nativeSort &&
+          Dom.readNativeSortValue(nativeSort) !== currentServerOrdering &&
+          !pendingServerOrdering
+        ) {
+          pendingServerOrdering = currentServerOrdering
+        }
+      }
+      return nativeSort
+    }
+
+    const restoreNativeSearchUi = () => {
+      for (const element of document.querySelectorAll(
+        '[data-ex-search-native-suggestion-hidden], [data-ex-search-native-sort-hidden]'
+      )) {
+        element.removeAttribute('data-ex-search-native-suggestion-hidden')
+        element.removeAttribute('data-ex-search-native-sort-hidden')
+      }
+      panelHost?.removeAttribute('data-ex-search-native-suggestion-layout')
+      nativeSortContainer = null
+      pendingServerOrdering = null
+    }
+
+    const applyPendingServerOrdering = () => {
+      if (!pendingServerOrdering || !panel) return
+      const nativeSort = Dom.findNativeSortSelector(panel)
+      if (!nativeSort) return
+      if (Dom.readNativeSortValue(nativeSort) === pendingServerOrdering) {
+        pendingServerOrdering = null
+        return
+      }
+
+      nativeSort.valueContainer.click()
+      const chooseOption = () => {
+        const currentNativeSort = Dom.findNativeSortSelector(panel)
+        const option = Dom.findNativeSortOption(
+          currentNativeSort,
+          pendingServerOrdering
+        )
+        if (!option) return
+        option.click()
+        pendingServerOrdering = null
+      }
+      chooseOption()
+      scheduleTimeout(chooseOption, 0)
     }
 
     const stateSignature = (input, cards) => JSON.stringify({
@@ -398,6 +500,7 @@
       currentInput = input
       panel = createPanel(document)
       panel.querySelector('[data-ex-search-ordering]').value = currentOrdering
+      panel.querySelector('[data-ex-search-server-ordering]').value = currentServerOrdering
       let ancestor = input.parentElement
       let separator = null
       for (let depth = 0; ancestor?.parentElement && depth < 5; depth += 1) {
@@ -417,6 +520,8 @@
         anchor.insertAdjacentElement('afterend', panel)
         panelHost = panel.parentElement
       }
+      reconcileNativeSearchUi()
+      applyPendingServerOrdering()
       const cleanups = []
       const listen = (target, type, handler, options) => {
         target.addEventListener(type, handler, options)
@@ -458,6 +563,14 @@
         lastSignature = ''
         refresh()
       })
+      listen(panel.querySelector('[data-ex-search-server-ordering]'), 'change', event => {
+        const value = ['createdAt', '-createdAt', 'updatedAt'].includes(event.currentTarget.value)
+          ? event.currentTarget.value
+          : 'createdAt'
+        currentServerOrdering = value
+        pendingServerOrdering = value
+        applyPendingServerOrdering()
+      })
       cleanInputListeners = () => cleanups.splice(0).forEach(cleanup => cleanup())
       updateStatus()
     }
@@ -465,6 +578,7 @@
     const unmount = () => {
       cleanInputListeners()
       cleanInputListeners = () => {}
+      restoreNativeSearchUi()
       if (panel?.parentNode) panel.parentNode.removeChild(panel)
       panelHost?.removeAttribute('data-ex-search-host')
       panel = null
@@ -486,6 +600,8 @@
         unmount()
         mount(input)
       }
+      reconcileNativeSearchUi()
+      applyPendingServerOrdering()
       const cards = Dom.findResultCards(document)
       if (stateSignature(input, cards) === lastSignature) return
       refresh()

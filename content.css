@@ -40,14 +40,25 @@
   grid-template-rows: min-content 2px min-content minmax(0, 1fr) !important;
 }
 
+[data-ex-search-native-suggestion-hidden='true'],
+[data-ex-search-native-sort-hidden='true'] {
+  display: none !important;
+}
+
+[data-ex-search-host='true'][data-ex-search-native-suggestion-layout='compact'] {
+  grid-template-rows: min-content 2px min-content !important;
+}
+
 [data-ex-search-heading] {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   align-items: baseline;
   justify-content: space-between;
 }
 
-[data-ex-search-ordering-control] {
+[data-ex-search-ordering-control],
+[data-ex-search-server-ordering-control] {
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
@@ -55,7 +66,8 @@
   font-size: 0.78rem;
 }
 
-[data-ex-search-ordering] {
+[data-ex-search-ordering],
+[data-ex-search-server-ordering] {
   min-height: 1.8rem;
   border: 1px solid var(--ex-search-border-secondary);
   border-radius: 0.3rem;

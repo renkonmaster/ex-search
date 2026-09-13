@@ -49,6 +49,52 @@
   const hasClassPrefix = (element, prefix) =>
     [...(element?.classList ?? [])].some(name => name.startsWith(prefix))
 
+  const NATIVE_SORT_LABELS = Object.freeze({
+    createdAt: '新しい順',
+    '-createdAt': '古い順',
+    updatedAt: '最近更新された順'
+  })
+
+  const nativeSearchSibling = panel => {
+    const sibling = panel?.nextElementSibling
+    return sibling?.nodeType === 1 ? sibling : null
+  }
+
+  function findNativeSearchSuggestion(panel) {
+    const candidate = nativeSearchSibling(panel)
+    if (!candidate) return null
+    return includingRoot(candidate, '[class*="_header_"]').some(element =>
+      element.textContent?.trim() === '検索オプション'
+    )
+      ? candidate
+      : null
+  }
+
+  function findNativeSortSelector(panel) {
+    const candidate = nativeSearchSibling(panel)
+    if (!candidate) return null
+    const valueContainer = includingRoot(
+      candidate,
+      '[class*="_valueContainer_"]'
+    )[0]
+    const container = valueContainer?.parentElement
+    return valueContainer && container ? { container, valueContainer } : null
+  }
+
+  function findNativeSortOption(selector, value) {
+    const label = NATIVE_SORT_LABELS[value]
+    if (!label || !selector?.container) return null
+    return includingRoot(
+      selector.container,
+      '[class*="_itemContainer_"]'
+    ).find(element => element.textContent?.trim() === label) ?? null
+  }
+
+  function readNativeSortValue(selector) {
+    const label = selector?.valueContainer?.textContent?.trim()
+    return Object.entries(NATIVE_SORT_LABELS).find(([, value]) => value === label)?.[0] ?? null
+  }
+
   function findResultCards(root) {
     const lists = includingRoot(
       root,
@@ -207,6 +253,10 @@
     findSearchInput,
     setNativeInputValue,
     findResultCards,
+    findNativeSearchSuggestion,
+    findNativeSortSelector,
+    findNativeSortOption,
+    readNativeSortValue,
     unwrapHighlights,
     highlightTerms,
     scoreResultCard,
