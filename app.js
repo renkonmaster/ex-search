@@ -10,9 +10,11 @@
   function createStorageAdapter(chromeApi, logger = console, Core = DefaultCore) {
     let sessionSettings = Core.normalizeSettings(Core.DEFAULT_SETTINGS)
     let sessionHistory = []
+    let usingFallback = false
     const warned = new Set()
 
     const warnOnce = (code, message, error) => {
+      usingFallback = true
       if (warned.has(code)) return
       warned.add(code)
       logger.warn(`ex-search: ${message}`, error)
@@ -110,7 +112,8 @@
           sessionHistory = Core.normalizeHistory(value, sessionSettings.historyLimit)
           return [...sessionHistory]
         }, listener)
-      }
+      },
+      isUsingFallback() { return usingFallback }
     }
   }
 
@@ -137,7 +140,18 @@
     title.textContent = 'ex-search'
     const note = document.createElement('span')
     note.textContent = '候補と並び替えはローカル処理です'
-    heading.append(title, note)
+    const orderingLabel = setData(document.createElement('label'), 'ordering-control')
+    const orderingText = document.createElement('span')
+    orderingText.textContent = '並び順'
+    const ordering = setData(document.createElement('select'), 'ordering')
+    for (const [value, text] of [['native', 'traQの順番'], ['relevance', '一致度順']]) {
+      const option = document.createElement('option')
+      option.value = value
+      option.textContent = text
+      ordering.append(option)
+    }
+    orderingLabel.append(orderingText, ordering)
+    heading.append(title, note, orderingLabel)
 
     const completion = setData(document.createElement('span'), 'completion')
     completion.setAttribute('aria-label', 'Tab補完候補')
@@ -161,7 +175,9 @@
     appendLabeledControl(document, fields, '場所', scope)
 
     const author = setData(document.createElement('select'), 'filter', 'author')
-    for (const [value, text] of [['', '指定なし'], ['is:bot', 'Botのみ'], ['not:bot', 'Bot以外']]) {
+    for (const [value, text] of [
+      ['', '指定なし'], ['from:me', '自分の投稿'], ['is:bot', 'Botのみ'], ['not:bot', 'Bot以外']
+    ]) {
       const option = document.createElement('option')
       option.value = value
       option.textContent = text
@@ -169,9 +185,13 @@
     }
     appendLabeledControl(document, fields, '投稿者種別', author)
 
-    const target = setData(document.createElement('input'), 'filter', 'target')
-    target.type = 'text'
-    target.placeholder = 'ユーザー名'
+    const target = setData(document.createElement('select'), 'filter', 'target')
+    for (const [value, text] of [['', '指定なし'], ['to:me', '自分宛て']]) {
+      const option = document.createElement('option')
+      option.value = value
+      option.textContent = text
+      target.append(option)
+    }
     appendLabeledControl(document, fields, '宛先', target)
 
     const content = setData(document.createElement('select'), 'filter', 'content')
@@ -237,12 +257,15 @@
     let history = []
     let currentInput = null
     let panel = null
+    let panelHost = null
     let observer = null
     let timer = null
     let started = false
+    let lifecycleVersion = 0
     let suggestionsHidden = false
     let currentCompletion = ''
     let currentSuggestions = []
+    let currentOrdering = settings.defaultOrdering
     let cleanInputListeners = () => {}
     let unsubscribeSettings = () => {}
     let unsubscribeHistory = () => {}
@@ -252,7 +275,7 @@
 
     const updateStatus = message => {
       const status = panel?.querySelector('[data-ex-search-status]')
-      if (status) status.textContent = message ?? fallbackNotice
+      if (status) status.textContent = [message, fallbackNotice].filter(Boolean).join(' ')
     }
 
     const cardId = card => {
@@ -318,8 +341,8 @@
         if (settings.highlightingEnabled) Dom.highlightTerms(card, terms)
         else Dom.unwrapHighlights(card)
       }
-      Dom.applyResultOrder(cards, terms, settings.defaultOrdering)
-      updateStatus(settings.defaultOrdering === 'relevance'
+      Dom.applyResultOrder(cards, terms, currentOrdering)
+      updateStatus(currentOrdering === 'relevance'
         ? '表示中の検索結果だけを関連度順に並べています。'
         : undefined)
       lastSignature = stateSignature(currentInput, cards)
@@ -327,11 +350,10 @@
 
     const filterValues = () => {
       const get = name => panel.querySelector(`[data-ex-search-filter="${name}"]`).value.trim()
-      const target = get('target').replace(/^@/u, '')
       return {
         scope: get('scope'),
         author: get('author'),
-        target: target && !/\s/u.test(target) ? `to:${target}` : '',
+        target: get('target'),
         content: get('content'),
         after: get('after'),
         before: get('before')
@@ -345,8 +367,26 @@
     const mount = input => {
       currentInput = input
       panel = createPanel(document)
-      const anchor = input.parentElement ?? input
-      anchor.insertAdjacentElement('afterend', panel)
+      panel.querySelector('[data-ex-search-ordering]').value = currentOrdering
+      let ancestor = input.parentElement
+      let separator = null
+      for (let depth = 0; ancestor?.parentElement && depth < 5; depth += 1) {
+        const parent = ancestor.parentElement
+        separator = [...parent.children].find(child => child.tagName === 'HR') ?? null
+        if (separator) {
+          panelHost = parent
+          break
+        }
+        ancestor = parent
+      }
+      if (separator && panelHost) {
+        separator.insertAdjacentElement('afterend', panel)
+        panelHost.setAttribute('data-ex-search-host', 'true')
+      } else {
+        const anchor = input.parentElement ?? input
+        anchor.insertAdjacentElement('afterend', panel)
+        panelHost = panel.parentElement
+      }
       const cleanups = []
       const listen = (target, type, handler, options) => {
         target.addEventListener(type, handler, options)
@@ -383,6 +423,11 @@
         Dom.setNativeInputValue(input, Core.applyOwnedFilters(input.value, {}))
         refresh()
       })
+      listen(panel.querySelector('[data-ex-search-ordering]'), 'change', event => {
+        currentOrdering = event.currentTarget.value === 'relevance' ? 'relevance' : 'native'
+        lastSignature = ''
+        refresh()
+      })
       cleanInputListeners = () => cleanups.splice(0).forEach(cleanup => cleanup())
       updateStatus()
     }
@@ -391,7 +436,9 @@
       cleanInputListeners()
       cleanInputListeners = () => {}
       if (panel?.parentNode) panel.parentNode.removeChild(panel)
+      panelHost?.removeAttribute('data-ex-search-host')
       panel = null
+      panelHost = null
       currentInput = null
       currentCompletion = ''
       currentSuggestions = []
@@ -435,16 +482,26 @@
     async function start() {
       if (started) return
       started = true
-      ;[settings, history] = await Promise.all([
-        storage.loadSettings(),
-        storage.loadHistory()
-      ])
+      const version = ++lifecycleVersion
+      let loaded
+      try {
+        loaded = await Promise.all([storage.loadSettings(), storage.loadHistory()])
+      } catch (error) {
+        if (version === lifecycleVersion) started = false
+        throw error
+      }
+      if (!started || version !== lifecycleVersion) return
+      ;[settings, history] = loaded
       settings = Core.normalizeSettings(settings)
+      currentOrdering = settings.defaultOrdering
       history = Core.normalizeHistory(history, settings.historyLimit)
       unsubscribeSettings = storage.subscribeSettings(value => {
         settings = Core.normalizeSettings(value)
+        currentOrdering = settings.defaultOrdering
         history = Core.normalizeHistory(history, settings.historyLimit)
         lastSignature = ''
+        const ordering = panel?.querySelector('[data-ex-search-ordering]')
+        if (ordering) ordering.value = currentOrdering
         refresh()
       })
       unsubscribeHistory = storage.subscribeHistory(value => {
@@ -462,6 +519,7 @@
     function stop() {
       if (!started) return
       started = false
+      lifecycleVersion += 1
       observer?.disconnect()
       observer = null
       unsubscribeSettings()

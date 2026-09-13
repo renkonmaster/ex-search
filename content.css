@@ -15,11 +15,32 @@
   font: inherit;
 }
 
+[data-ex-search-host='true'] {
+  grid-template-rows: min-content 2px min-content minmax(0, 1fr) !important;
+}
+
 [data-ex-search-heading] {
   display: flex;
   gap: 0.75rem;
   align-items: baseline;
   justify-content: space-between;
+}
+
+[data-ex-search-ordering-control] {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: auto;
+  font-size: 0.78rem;
+}
+
+[data-ex-search-ordering] {
+  min-height: 1.8rem;
+  border: 1px solid rgb(128 128 128 / 40%);
+  border-radius: 0.3rem;
+  color: inherit;
+  background: Canvas;
+  font: inherit;
 }
 
 [data-ex-search-heading] span,

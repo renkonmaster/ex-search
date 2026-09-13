@@ -86,6 +86,7 @@ test('storage failures retain usable session-memory state and warn once per oper
   assert.deepEqual(await adapter.recordQuery('offline query', 7), ['offline query'])
   assert.deepEqual(await adapter.clearHistory(), [])
   await adapter.loadSettings()
+  assert.equal(adapter.isUsingFallback(), true)
   assert.ok(warnings.every(message => message.startsWith('ex-search:')))
   assert.equal(new Set(warnings).size, warnings.length)
 })
@@ -136,10 +137,13 @@ function createMemoryStorage(settings = Core.DEFAULT_SETTINGS, history = []) {
 }
 
 const searchFixture = () => new JSDOM(`
-  <div id="palette"><div id="input-row"><input placeholder="メッセージを検索" value="release"></div></div>
-  <div class="_resultList_hash">
-    <div class="_elementContainer_hash">release once</div>
-    <div class="_elementContainer_hash">release release twice</div>
+  <div id="palette">
+    <div id="input-component"><div id="input-row"><input placeholder="メッセージを検索" value="release"></div><button aria-label="close"></button></div>
+    <hr id="separator">
+    <div class="_resultList_hash">
+      <div class="_elementContainer_hash">release once</div>
+      <div class="_elementContainer_hash">release release twice</div>
+    </div>
   </div>
 `, { url: 'https://q.trap.jp/channels/team/dev' })
 
@@ -162,7 +166,11 @@ test('app lifecycle mounts once, batches mutations, follows input replacement, a
 
   await app.start()
   await app.start()
+  const mountedPanel = dom.window.document.querySelector('[data-ex-search-panel]')
   assert.equal(dom.window.document.querySelectorAll('[data-ex-search-panel]').length, 1)
+  assert.equal(mountedPanel.parentElement.id, 'palette')
+  assert.equal(mountedPanel.previousElementSibling.id, 'separator')
+  assert.equal(mountedPanel.parentElement.getAttribute('data-ex-search-host'), 'true')
   assert.equal(FakeObserver.instances.length, 1)
   for (let index = 0; index < 5; index += 1) FakeObserver.instances[0].callback([{ addedNodes: [] }])
   assert.equal(scheduler.size, 1)
@@ -181,6 +189,40 @@ test('app lifecycle mounts once, batches mutations, follows input replacement, a
 
   app.stop()
   assert.equal(FakeObserver.instances[0].disconnected, true)
+  assert.equal(dom.window.document.querySelector('[data-ex-search-panel]'), null)
+  assert.equal(dom.window.document.querySelector('#palette').hasAttribute('data-ex-search-host'), false)
+})
+
+test('stop during asynchronous startup does not leave observers or subscriptions', async () => {
+  FakeObserver.instances = []
+  const dom = searchFixture()
+  let resolveSettings
+  let resolveHistory
+  let subscriptions = 0
+  const storage = {
+    loadSettings: () => new Promise(resolve => { resolveSettings = resolve }),
+    loadHistory: () => new Promise(resolve => { resolveHistory = resolve }),
+    subscribeSettings() { subscriptions += 1; return () => { subscriptions -= 1 } },
+    subscribeHistory() { subscriptions += 1; return () => { subscriptions -= 1 } }
+  }
+  const app = createExSearchApp({
+    document: dom.window.document,
+    location: dom.window.location,
+    storage,
+    MutationObserver: FakeObserver,
+    logger: { warn() {}, error() {} },
+    Core,
+    Dom
+  })
+
+  const startup = app.start()
+  app.stop()
+  resolveSettings(Core.DEFAULT_SETTINGS)
+  resolveHistory([])
+  await startup
+
+  assert.equal(FakeObserver.instances.length, 0)
+  assert.equal(subscriptions, 0)
   assert.equal(dom.window.document.querySelector('[data-ex-search-panel]'), null)
 })
 
@@ -209,17 +251,25 @@ test('panel suggestions, completion, filters, highlighting, and local ordering w
   const buttons = [...document.querySelectorAll('[data-ex-search-suggestion]')]
   assert.ok(buttons.length > 0 && buttons.length <= 8)
   assert.equal(document.querySelector('[data-ex-search-completion]').textContent, ' notes')
+  const ordering = document.querySelector('[data-ex-search-ordering]')
+  assert.equal(ordering.value, 'relevance')
+  ordering.value = 'native'
+  ordering.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  assert.equal(document.querySelectorAll('[data-ex-search-local-score]').length, 0)
+  ordering.value = 'relevance'
+  ordering.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
 
   input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
   assert.equal(input.value, 'release notes')
   input.value = 'hello custom:value in:#old'
   input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
   document.querySelector('[data-ex-search-filter="scope"]').value = 'in:here'
-  document.querySelector('[data-ex-search-filter="author"]').value = 'not:bot'
+  document.querySelector('[data-ex-search-filter="author"]').value = 'from:me'
+  document.querySelector('[data-ex-search-filter="target"]').value = 'to:me'
   document.querySelector('[data-ex-search-filter="content"]').value = 'has:image'
   document.querySelector('[data-ex-search-filter="after"]').value = '2026-09-01'
   document.querySelector('[data-ex-search-apply-filters]').click()
-  assert.equal(input.value, 'hello custom:value in:here not:bot has:image after:2026-09-01')
+  assert.equal(input.value, 'hello custom:value in:here from:me to:me has:image after:2026-09-01')
   document.querySelector('[data-ex-search-reset-filters]').click()
   assert.equal(input.value, 'hello custom:value')
 
@@ -230,5 +280,17 @@ test('panel suggestions, completion, filters, highlighting, and local ordering w
 
   input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
   assert.equal(document.querySelector('[data-ex-search-suggestions]').hidden, true)
+
+  storage.emitSettings({
+    ...Core.DEFAULT_SETTINGS,
+    suggestionsEnabled: false,
+    completionEnabled: false,
+    highlightingEnabled: false,
+    defaultOrdering: 'native'
+  })
+  assert.equal(document.querySelector('[data-ex-search-suggestions]').hidden, true)
+  assert.equal(document.querySelector('[data-ex-search-completion]').textContent, '')
+  assert.equal(document.querySelectorAll('mark[data-ex-search-highlight]').length, 0)
+  assert.equal(document.querySelectorAll('[data-ex-search-local-score]').length, 0)
   app.stop()
 })

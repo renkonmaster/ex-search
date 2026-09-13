@@ -56,7 +56,11 @@
         try {
           const saved = await storage.saveSettings(readForm())
           writeForm(saved)
-          showStatus('設定を保存しました')
+          if (storage.isUsingFallback?.()) {
+            showStatus('ブラウザーへ保存できず、この画面内だけで反映しました', true)
+          } else {
+            showStatus('設定を保存しました')
+          }
         } catch (error) {
           showStatus(error instanceof Error ? error.message : '設定を保存できませんでした', true)
           limit.focus()
@@ -72,7 +76,11 @@
     document.querySelector('#clear-history').addEventListener('click', () => {
       if (typeof confirm === 'function' && !confirm('ex-searchの検索履歴をすべて消去しますか？')) return
       void storage.clearHistory().then(() => {
-        showStatus('検索履歴を消去しました')
+        if (storage.isUsingFallback?.()) {
+          showStatus('ブラウザーの履歴を消去できず、この画面内だけで消去しました', true)
+        } else {
+          showStatus('検索履歴を消去しました')
+        }
       }).catch(error => {
         showStatus(error instanceof Error ? error.message : '検索履歴を消去できませんでした', true)
       })
@@ -83,6 +91,9 @@
         if (!startPromise) {
           startPromise = storage.loadSettings().then(settings => {
             writeForm(settings)
+            if (storage.isUsingFallback?.()) {
+              showStatus('ブラウザー保存を利用できないため、既定値を表示しています', true)
+            }
           }).catch(error => {
             writeForm(Core.DEFAULT_SETTINGS)
             showStatus(error instanceof Error ? error.message : '設定を読み込めませんでした', true)
