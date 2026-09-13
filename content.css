@@ -62,6 +62,36 @@
   gap: 0.35rem;
 }
 
+[data-ex-search-history] summary {
+  padding: 0.3rem 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-ex-search-history-list] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.35rem;
+  max-height: 12rem;
+  padding-top: 0.35rem;
+  overflow: auto;
+}
+
+[data-ex-search-history-entry] {
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  overflow: hidden;
+  border: 1px solid rgb(128 128 128 / 30%);
+  border-radius: 0.35rem;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 [data-ex-search-suggestion] {
   display: flex;
   gap: 0.5rem;
@@ -80,7 +110,9 @@
 }
 
 [data-ex-search-suggestion]:hover,
-[data-ex-search-suggestion]:focus-visible {
+[data-ex-search-suggestion]:focus-visible,
+[data-ex-search-history-entry]:hover,
+[data-ex-search-history-entry]:focus-visible {
   border-color: #4899f9;
   outline: none;
   background: rgb(72 153 249 / 12%);

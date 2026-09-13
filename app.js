@@ -123,8 +123,8 @@
   }
 
   const appendLabeledControl = (document, parent, labelText, control) => {
-    const label = document.createElement('label')
-    const text = document.createElement('span')
+    const label = setData(document.createElement('label'), 'filter-label')
+    const text = setData(document.createElement('span'), 'filter-label-text')
     text.textContent = labelText
     label.append(text, control)
     parent.append(label)
@@ -136,16 +136,16 @@
 
     const heading = document.createElement('div')
     setData(heading, 'heading')
-    const title = document.createElement('strong')
+    const title = setData(document.createElement('strong'), 'title')
     title.textContent = 'ex-search'
-    const note = document.createElement('span')
+    const note = setData(document.createElement('span'), 'note')
     note.textContent = '候補と並び替えはローカル処理です'
     const orderingLabel = setData(document.createElement('label'), 'ordering-control')
-    const orderingText = document.createElement('span')
+    const orderingText = setData(document.createElement('span'), 'ordering-label')
     orderingText.textContent = '並び順'
     const ordering = setData(document.createElement('select'), 'ordering')
     for (const [value, text] of [['native', 'traQの順番'], ['relevance', '一致度順']]) {
-      const option = document.createElement('option')
+      const option = setData(document.createElement('option'), 'ordering-option')
       option.value = value
       option.textContent = text
       ordering.append(option)
@@ -159,15 +159,21 @@
     suggestions.setAttribute('role', 'listbox')
     suggestions.setAttribute('aria-label', '検索候補')
 
+    const historyDetails = setData(document.createElement('details'), 'history')
+    const historySummary = setData(document.createElement('summary'), 'history-summary')
+    historySummary.textContent = '検索履歴'
+    const historyList = setData(document.createElement('div'), 'history-list')
+    historyDetails.append(historySummary, historyList)
+
     const filters = document.createElement('details')
     setData(filters, 'filters')
-    const summary = document.createElement('summary')
+    const summary = setData(document.createElement('summary'), 'filter-summary')
     summary.textContent = '検索条件をわかりやすく指定'
     const fields = setData(document.createElement('div'), 'filter-grid')
 
     const scope = setData(document.createElement('select'), 'filter', 'scope')
     for (const [value, text] of [['', '指定なし'], ['in:here', '現在のチャンネル']]) {
-      const option = document.createElement('option')
+      const option = setData(document.createElement('option'), 'filter-option')
       option.value = value
       option.textContent = text
       scope.append(option)
@@ -178,7 +184,7 @@
     for (const [value, text] of [
       ['', '指定なし'], ['from:me', '自分の投稿'], ['is:bot', 'Botのみ'], ['not:bot', 'Bot以外']
     ]) {
-      const option = document.createElement('option')
+      const option = setData(document.createElement('option'), 'filter-option')
       option.value = value
       option.textContent = text
       author.append(option)
@@ -187,7 +193,7 @@
 
     const target = setData(document.createElement('select'), 'filter', 'target')
     for (const [value, text] of [['', '指定なし'], ['to:me', '自分宛て']]) {
-      const option = document.createElement('option')
+      const option = setData(document.createElement('option'), 'filter-option')
       option.value = value
       option.textContent = text
       target.append(option)
@@ -199,7 +205,7 @@
       ['', '指定なし'], ['has:attachments', '添付あり'], ['has:image', '画像あり'],
       ['has:video', '動画あり'], ['has:audio', '音声あり']
     ]) {
-      const option = document.createElement('option')
+      const option = setData(document.createElement('option'), 'filter-option')
       option.value = value
       option.textContent = text
       content.append(option)
@@ -226,7 +232,7 @@
     const status = setData(document.createElement('p'), 'status')
     status.setAttribute('role', 'status')
     status.setAttribute('aria-live', 'polite')
-    panel.append(heading, completion, suggestions, filters, status)
+    panel.append(heading, completion, suggestions, historyDetails, filters, status)
     return panel
   }
 
@@ -298,9 +304,9 @@
         const button = setData(document.createElement('button'), 'suggestion')
         button.type = 'button'
         button.setAttribute('role', 'option')
-        const value = document.createElement('span')
+        const value = setData(document.createElement('span'), 'suggestion-value')
         value.textContent = suggestion.value
-        const source = document.createElement('small')
+        const source = setData(document.createElement('small'), 'suggestion-source')
         source.textContent = {
           history: '履歴', context: '現在の画面', local: '表示中の結果'
         }[suggestion.source] ?? '候補'
@@ -315,6 +321,29 @@
       }
       container.hidden = suggestionsHidden || !settings.suggestionsEnabled || suggestions.length === 0
       panel.querySelector('[data-ex-search-completion]').textContent = currentCompletion
+    }
+
+    const renderHistory = () => {
+      if (!panel) return
+      const details = panel.querySelector('[data-ex-search-history]')
+      const summary = panel.querySelector('[data-ex-search-history-summary]')
+      const list = panel.querySelector('[data-ex-search-history-list]')
+      const entries = history.slice(0, settings.historyLimit)
+      summary.textContent = `検索履歴（${entries.length}件）`
+      list.replaceChildren()
+      for (const query of entries) {
+        const button = setData(document.createElement('button'), 'history-entry')
+        button.type = 'button'
+        button.textContent = query
+        button.addEventListener('click', () => {
+          Dom.setNativeInputValue(currentInput, query)
+          suggestionsHidden = false
+          refresh()
+          currentInput.focus()
+        })
+        list.append(button)
+      }
+      details.hidden = entries.length === 0
     }
 
     const refresh = () => {
@@ -335,6 +364,7 @@
         ? Core.getCompletion(currentInput.value, currentSuggestions)
         : ''
       renderSuggestions(currentSuggestions)
+      renderHistory()
 
       const terms = Core.extractSearchTerms(currentInput.value)
       for (const card of cards) {

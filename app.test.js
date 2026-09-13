@@ -168,6 +168,12 @@ test('app lifecycle mounts once, batches mutations, follows input replacement, a
   await app.start()
   const mountedPanel = dom.window.document.querySelector('[data-ex-search-panel]')
   assert.equal(dom.window.document.querySelectorAll('[data-ex-search-panel]').length, 1)
+  for (const element of mountedPanel.querySelectorAll('*')) {
+    assert.ok(
+      [...element.attributes].some(attribute => attribute.name.startsWith('data-ex-search-')),
+      element.outerHTML
+    )
+  }
   assert.equal(mountedPanel.parentElement.id, 'palette')
   assert.equal(mountedPanel.previousElementSibling.id, 'separator')
   assert.equal(mountedPanel.parentElement.getAttribute('data-ex-search-host'), 'true')
@@ -233,7 +239,10 @@ test('panel suggestions, completion, filters, highlighting, and local ordering w
   const storage = createMemoryStorage({
     ...Core.DEFAULT_SETTINGS,
     defaultOrdering: 'relevance'
-  }, ['release notes', 'release train'])
+  }, [
+    'release notes', 'release train', '障害対応', 'weekly report',
+    'from:me update', 'has:image design', 'after:2026-09-01 roadmap'
+  ])
   const app = createExSearchApp({
     document: dom.window.document,
     location: dom.window.location,
@@ -250,6 +259,9 @@ test('panel suggestions, completion, filters, highlighting, and local ordering w
   const input = document.querySelector('input[placeholder]')
   const buttons = [...document.querySelectorAll('[data-ex-search-suggestion]')]
   assert.ok(buttons.length > 0 && buttons.length <= 8)
+  const historyEntries = [...document.querySelectorAll('[data-ex-search-history-entry]')]
+  assert.equal(historyEntries.length, 7)
+  assert.ok(historyEntries.length > 5)
   assert.equal(document.querySelector('[data-ex-search-completion]').textContent, ' notes')
   const ordering = document.querySelector('[data-ex-search-ordering]')
   assert.equal(ordering.value, 'relevance')
@@ -258,6 +270,11 @@ test('panel suggestions, completion, filters, highlighting, and local ordering w
   assert.equal(document.querySelectorAll('[data-ex-search-local-score]').length, 0)
   ordering.value = 'relevance'
   ordering.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+
+  historyEntries.at(-1).click()
+  assert.equal(input.value, 'after:2026-09-01 roadmap')
+  input.value = 'release'
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
 
   input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
   assert.equal(input.value, 'release notes')
