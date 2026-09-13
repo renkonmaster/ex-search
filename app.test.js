@@ -223,11 +223,11 @@ test('hides native search suggestions and restores them when stopped', async () 
   const document = dom.window.document
   const nativeSuggestion = document.querySelector('#native-suggestion')
   assert.equal(nativeSuggestion.dataset.exSearchNativeSuggestionHidden, 'true')
-  assert.equal(document.querySelector('#palette').dataset.exSearchNativeSuggestionHidden, 'true')
+  assert.equal(document.querySelector('#palette').dataset.exSearchNativeSuggestionLayout, 'compact')
 
   app.stop()
   assert.equal(nativeSuggestion.hasAttribute('data-ex-search-native-suggestion-hidden'), false)
-  assert.equal(document.querySelector('#palette').hasAttribute('data-ex-search-native-suggestion-hidden'), false)
+  assert.equal(document.querySelector('#palette').hasAttribute('data-ex-search-native-suggestion-layout'), false)
 })
 
 test('owns server sort choices while forwarding them to the hidden native selector', async () => {
