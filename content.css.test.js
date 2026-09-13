@@ -21,7 +21,11 @@ test('content styles consume traQ theme variables for visible color roles', () =
   ]
 
   for (const variable of required) {
-    assert.ok(css.includes(`var(${variable}`), `missing var(${variable}`)
+    assert.match(
+      css,
+      new RegExp(`var\\(\\s*${variable}`),
+      `missing var(${variable}`
+    )
   }
 
   assert.doesNotMatch(css, /border-color:\s*#4899f9;/)
