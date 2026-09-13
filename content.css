@@ -1,4 +1,28 @@
 [data-ex-search-panel] {
+  --ex-search-color-primary: var(--theme-ui-primary-default, currentColor);
+  --ex-search-color-secondary: var(
+    --theme-ui-secondary-default,
+    color-mix(in srgb, currentColor 68%, transparent)
+  );
+  --ex-search-background-primary: var(--theme-background-primary-default, Canvas);
+  --ex-search-background-secondary: var(--theme-background-secondary-default, Canvas);
+  --ex-search-border-primary: var(
+    --theme-background-primary-border,
+    rgb(128 128 128 / 35%)
+  );
+  --ex-search-border-secondary: var(
+    --theme-background-secondary-border,
+    rgb(128 128 128 / 40%)
+  );
+  --ex-search-accent: var(--theme-accent-primary-default, #4899f9);
+  --ex-search-accent-background: var(
+    --theme-accent-primary-background,
+    rgb(72 153 249 / 12%)
+  );
+  --ex-search-focus: var(--theme-accent-focus-default, var(--ex-search-accent));
+  --ex-search-mark-text: var(--markdown-mark-text, currentColor);
+  --ex-search-mark-background: var(--markdown-mark-background, #ffd84d);
+
   z-index: 1;
   display: grid;
   gap: 0.5rem;
@@ -6,12 +30,11 @@
   margin: 0 1rem 0.75rem;
   padding: 0.75rem;
   overflow: auto;
-  border: 1px solid rgb(128 128 128 / 35%);
+  border: 1px solid var(--ex-search-border-primary);
   border-radius: 0.5rem;
-  color: inherit;
-  background: Canvas;
-  background: color-mix(in srgb, Canvas 94%, transparent);
-  box-shadow: 0 0.4rem 1rem rgb(0 0 0 / 12%);
+  color: var(--ex-search-color-primary);
+  background: var(--ex-search-background-primary);
+  color-scheme: var(--color-scheme, light dark);
   font: inherit;
 }
 
@@ -36,17 +59,17 @@
 
 [data-ex-search-ordering] {
   min-height: 1.8rem;
-  border: 1px solid rgb(128 128 128 / 40%);
+  border: 1px solid var(--ex-search-border-secondary);
   border-radius: 0.3rem;
-  color: inherit;
-  background: Canvas;
+  color: var(--ex-search-color-primary);
+  background: var(--ex-search-background-secondary);
   font: inherit;
 }
 
 [data-ex-search-heading] span,
 [data-ex-search-status],
 [data-ex-search-suggestion] small {
-  color: color-mix(in srgb, currentColor 68%, transparent);
+  color: var(--ex-search-color-secondary);
   font-size: 0.78rem;
 }
 
@@ -81,9 +104,9 @@
   min-width: 0;
   padding: 0.4rem 0.55rem;
   overflow: hidden;
-  border: 1px solid rgb(128 128 128 / 30%);
+  border: 1px solid var(--ex-search-border-secondary);
   border-radius: 0.35rem;
-  color: inherit;
+  color: var(--ex-search-color-primary);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -100,9 +123,9 @@
   min-width: 0;
   padding: 0.45rem 0.6rem;
   overflow: hidden;
-  border: 1px solid rgb(128 128 128 / 30%);
+  border: 1px solid var(--ex-search-border-secondary);
   border-radius: 0.35rem;
-  color: inherit;
+  color: var(--ex-search-color-primary);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -110,12 +133,17 @@
 }
 
 [data-ex-search-suggestion]:hover,
-[data-ex-search-suggestion]:focus-visible,
-[data-ex-search-history-entry]:hover,
-[data-ex-search-history-entry]:focus-visible {
-  border-color: #4899f9;
+[data-ex-search-history-entry]:hover {
+  border-color: var(--ex-search-accent);
   outline: none;
-  background: rgb(72 153 249 / 12%);
+  background: var(--ex-search-accent-background);
+}
+
+[data-ex-search-suggestion]:focus-visible,
+[data-ex-search-history-entry]:focus-visible {
+  border-color: var(--ex-search-focus);
+  outline: none;
+  background: var(--ex-search-accent-background);
 }
 
 [data-ex-search-filters] summary {
@@ -141,10 +169,10 @@
 [data-ex-search-filter-grid] select,
 [data-ex-search-filter-actions] button {
   min-height: 2rem;
-  border: 1px solid rgb(128 128 128 / 40%);
+  border: 1px solid var(--ex-search-border-secondary);
   border-radius: 0.3rem;
-  color: inherit;
-  background: Canvas;
+  color: var(--ex-search-color-primary);
+  background: var(--ex-search-background-secondary);
   font: inherit;
 }
 
@@ -167,20 +195,13 @@
 mark[data-ex-search-highlight='true'] {
   padding: 0 0.08em;
   border-radius: 0.15em;
-  color: inherit;
-  background: #ffd84d;
-  box-shadow: 0 0 0 1px rgb(120 80 0 / 15%);
+  color: var(--ex-search-mark-text);
+  background: var(--ex-search-mark-background);
 }
 
 [data-ex-search-relevance-list='true'] {
   display: flex !important;
   flex-direction: column !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  mark[data-ex-search-highlight='true'] {
-    background: #8a6500;
-  }
 }
 
 @media (max-width: 640px) {
