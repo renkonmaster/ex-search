@@ -20,8 +20,6 @@
     rgb(72 153 249 / 12%)
   );
   --ex-search-focus: var(--theme-accent-focus-default, var(--ex-search-accent));
-  --ex-search-mark-text: var(--markdown-mark-text, currentColor);
-  --ex-search-mark-background: var(--markdown-mark-background, #ffd84d);
 
   z-index: 1;
   display: grid;
@@ -195,8 +193,8 @@
 mark[data-ex-search-highlight='true'] {
   padding: 0 0.08em;
   border-radius: 0.15em;
-  color: var(--ex-search-mark-text);
-  background: var(--ex-search-mark-background);
+  color: var(--markdown-mark-text, currentColor);
+  background: var(--markdown-mark-background, #ffd84d);
 }
 
 [data-ex-search-relevance-list='true'] {
