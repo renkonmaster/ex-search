@@ -54,7 +54,7 @@ assert.deepEqual(serverSortOptions, ['新しい順', '古い順', '最近更新�
 Dispatch a change to the ex-search server-sort select with value `-createdAt`
 and assert the hidden native option `古い順` receives the click. After
 `app.stop()`, assert both hiding attributes and the host compact-layout
-attribute are absent.
+attribute (`data-ex-search-native-suggestion-layout`) are absent.
 
 - [ ] **Step 3: Extend the CSS contract test**
 
@@ -117,7 +117,7 @@ already correct. On unmount/stop, remove all native markers.
 - [ ] **Step 3: Add CSS hiding rules and compact layout**
 
 Add `display: none !important` for the two native marker selectors. When the
-native suggestion marker is active on the host, use three grid rows so the
+native suggestion layout marker is active on the host, use three grid rows so the
 hidden native suggestion does not leave an empty fourth row. Keep native
 result-list selectors unmodified.
 
