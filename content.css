@@ -214,6 +214,10 @@ mark[data-ex-search-highlight='true'] {
   flex-direction: column !important;
 }
 
+[data-ex-search-panel] [hidden] {
+  display: none !important;
+}
+
 @media (max-width: 640px) {
   [data-ex-search-panel] {
     max-height: 52vh;

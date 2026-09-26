@@ -2,8 +2,19 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { JSDOM } = require('jsdom')
 
 const css = fs.readFileSync(path.join(__dirname, 'content.css'), 'utf8')
+
+test('hidden suggestions stay hidden despite their grid layout', () => {
+  const dom = new JSDOM(`<style>${css}</style>
+    <section data-ex-search-panel><div data-ex-search-suggestions hidden></div></section>`)
+  const suggestions = dom.window.document.querySelector('[data-ex-search-suggestions]')
+  assert.equal(dom.window.getComputedStyle(suggestions).display, 'none')
+  suggestions.hidden = false
+  assert.equal(dom.window.getComputedStyle(suggestions).display, 'grid')
+  dom.window.close()
+})
 
 test('content styles consume traQ theme variables for visible color roles', () => {
   const required = [

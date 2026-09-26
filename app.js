@@ -286,6 +286,7 @@
     let suggestionsHidden = false
     let currentCompletion = ''
     let currentSuggestions = []
+    let completionCycle = null
     let currentOrdering = settings.defaultOrdering
     let currentServerOrdering = 'createdAt'
     let pendingServerOrdering = null
@@ -422,7 +423,9 @@
         container.append(button)
       }
       container.hidden = suggestionsHidden || !settings.suggestionsEnabled || suggestions.length === 0
-      panel.querySelector('[data-ex-search-completion]').textContent = currentCompletion
+      panel.querySelector('[data-ex-search-completion]').textContent = suggestionsHidden
+        ? ''
+        : currentCompletion
     }
 
     const renderHistory = () => {
@@ -453,7 +456,10 @@
       const cards = Dom.findResultCards(document)
       const visibleTexts = cards.map(card => card.textContent ?? '')
       const frequentTerms = Core.extractFrequentTerms(visibleTexts, 8)
-      currentSuggestions = settings.suggestionsEnabled
+      if (completionCycle && (
+        !settings.completionEnabled || currentInput.value !== completionCycle.value
+      )) completionCycle = null
+      currentSuggestions = completionCycle?.suggestions ?? (settings.suggestionsEnabled || settings.completionEnabled
         ? Core.rankSuggestions({
             input: currentInput.value,
             history,
@@ -461,8 +467,10 @@
             frequentTerms,
             limit: 8
           })
-        : []
-      currentCompletion = settings.completionEnabled
+        : [])
+      currentCompletion = completionCycle
+        ? `候補 ${completionCycle.index + 1}/${completionCycle.values.length}（Tabで次へ）`
+        : settings.completionEnabled
         ? Core.getCompletion(currentInput.value, currentSuggestions)
         : ''
       renderSuggestions(currentSuggestions)
@@ -528,20 +536,63 @@
         cleanups.push(() => target.removeEventListener(type, handler, options))
       }
 
+      let composing = false
+      let applyingCompletion = false
+      const resetCompletionCycle = () => { completionCycle = null }
+      listen(input, 'blur', resetCompletionCycle)
+      listen(input, 'focus', () => { if (!completionCycle) refresh() })
+      listen(input, 'click', () => {
+        resetCompletionCycle()
+        refresh()
+      })
+      listen(input, 'compositionstart', () => {
+        composing = true
+        resetCompletionCycle()
+      })
+      listen(input, 'compositionend', () => { composing = false })
       listen(input, 'input', () => {
+        if (!applyingCompletion) resetCompletionCycle()
         suggestionsHidden = false
         refresh()
       })
       listen(input, 'keydown', event => {
-        if (event.key === 'Tab' && settings.completionEnabled && currentCompletion) {
+        if (composing || event.isComposing || event.keyCode === 229) return
+        if (
+          event.key === 'Tab' && !event.shiftKey && !event.ctrlKey &&
+          !event.altKey && !event.metaKey && !suggestionsHidden &&
+          input.selectionStart === input.value.length &&
+          input.selectionEnd === input.value.length &&
+          settings.completionEnabled && currentSuggestions.length > 0
+        ) {
           event.preventDefault()
-          Dom.setNativeInputValue(input, input.value + currentCompletion)
+          event.stopImmediatePropagation()
+          if (!completionCycle) {
+            const alternatives = currentSuggestions.filter(item => item.value !== input.value)
+            completionCycle = {
+              suggestions: currentSuggestions,
+              values: (alternatives.length ? alternatives : currentSuggestions).map(item => item.value),
+              index: -1,
+              value: input.value
+            }
+          }
+          completionCycle.index = (completionCycle.index + 1) % completionCycle.values.length
+          completionCycle.value = completionCycle.values[completionCycle.index]
+          applyingCompletion = true
+          try {
+            Dom.setNativeInputValue(input, completionCycle.value)
+          } finally {
+            applyingCompletion = false
+          }
+          input.focus({ preventScroll: true })
+          input.setSelectionRange(input.value.length, input.value.length)
           suggestionsHidden = false
           refresh()
         } else if (event.key === 'Escape') {
+          resetCompletionCycle()
           suggestionsHidden = true
           renderSuggestions(currentSuggestions)
-        } else if (event.key === 'Enter' && input.value.trim()) {
+        } else if (event.key === 'Enter' && !event.repeat && input.value.trim()) {
+          resetCompletionCycle()
           void storage.recordQuery(input.value, settings.historyLimit).then(nextHistory => {
             history = Core.normalizeHistory(nextHistory, settings.historyLimit)
             refresh()
@@ -586,6 +637,7 @@
       currentInput = null
       currentCompletion = ''
       currentSuggestions = []
+      completionCycle = null
       lastSignature = ''
     }
 
@@ -631,7 +683,8 @@
       const version = ++lifecycleVersion
       let loaded
       try {
-        loaded = await Promise.all([storage.loadSettings(), storage.loadHistory()])
+        // Settings may arrive after history; defer applying the configured limit.
+        loaded = await Promise.all([storage.loadSettings(), storage.loadHistory(100)])
       } catch (error) {
         if (version === lifecycleVersion) started = false
         throw error

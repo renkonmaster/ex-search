@@ -26,7 +26,7 @@
     return Math.min(100, Math.max(1, Math.floor(value)))
   }
 
-  const cleanQuery = value => String(value ?? '').trim().replace(/\s+/g, ' ')
+  const cleanQuery = value => splitQuery(value).join(' ')
 
   function normalizeSettings(value) {
     const source = value && typeof value === 'object' && !Array.isArray(value)
@@ -246,11 +246,12 @@
         candidate.key = key
         return true
       })
+      .map(candidate => ({ ...candidate, match: matchScore(candidate.key, query) }))
+      .filter(candidate => candidate.match >= 0)
       .map(candidate => ({
         ...candidate,
-        score: matchScore(candidate.key, query) + sourceBonus[candidate.source] + candidate.weight
+        score: candidate.match + sourceBonus[candidate.source] + candidate.weight
       }))
-      .filter(candidate => candidate.score >= 0)
       .sort((left, right) =>
         right.score - left.score ||
         left.index - right.index ||

@@ -38,6 +38,28 @@ test('history is trimmed, deduplicated, newest first, and bounded', () => {
   assert.deepEqual(normalizeHistory([' a ', '', 3, 'a', 'b'], 2), ['a', 'b'])
 })
 
+test('history and suggestions preserve spaces and escapes inside quoted queries', () => {
+  const query = 'release "two  spaces" "say \\"hello\\""'
+  assert.deepEqual(recordHistory([], `  ${query}  `), [query])
+  assert.deepEqual(normalizeHistory(['"a  b"', '"a b"']), ['"a  b"', '"a b"'])
+  const suggestions = rankSuggestions({ input: 'release', history: [query] })
+  assert.equal(suggestions[0].value, query)
+  assert.equal(getCompletion('release', suggestions), query.slice('release'.length))
+})
+
+test('unrelated candidates are excluded before source and frequency bonuses', () => {
+  assert.deepEqual(rankSuggestions({
+    input: 'missing',
+    history: ['release notes'],
+    context: ['in:here'],
+    frequentTerms: [{ term: 'popular', count: 10000 }]
+  }), [])
+  assert.deepEqual(rankSuggestions({
+    input: 'release',
+    history: ['old query', 'Release notes', 'weekly release', 'prerelease']
+  }).map(item => item.value), ['Release notes', 'weekly release', 'prerelease'])
+})
+
 test('filter replacement is quote-aware and preserves unrelated operators', () => {
   assert.deepEqual(splitQuery('hello "release notes" custom:value'), [
     'hello',

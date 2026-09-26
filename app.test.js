@@ -147,6 +147,168 @@ const searchFixture = () => new JSDOM(`
   </div>
 `, { url: 'https://q.trap.jp/channels/team/dev' })
 
+test('startup loads the configured history above 20 even when settings arrive later', async () => {
+  const dom = searchFixture()
+  const queries = Array.from({ length: 60 }, (_, index) => `query ${index}`)
+  const fake = createFakeChrome({ local: { [Core.HISTORY_KEY]: queries } })
+  let resolveSettings
+  fake.chromeApi.storage.sync.get = () => new Promise(resolve => { resolveSettings = resolve })
+  const app = createExSearchApp({
+    document: dom.window.document,
+    location: dom.window.location,
+    chromeApi: fake.chromeApi,
+    MutationObserver: FakeObserver
+  })
+  const startup = app.start()
+  await Promise.resolve()
+  resolveSettings({ [Core.SETTINGS_KEY]: { ...Core.DEFAULT_SETTINGS, historyLimit: 50 } })
+  await startup
+  assert.equal(dom.window.document.querySelectorAll('[data-ex-search-history-entry]').length, 50)
+  app.stop()
+})
+
+test('IME confirmation and repeated Enter do not record a search', async () => {
+  const dom = searchFixture()
+  const storage = createMemoryStorage(Core.DEFAULT_SETTINGS, ['release notes'])
+  const app = createExSearchApp({
+    document: dom.window.document, location: dom.window.location,
+    storage, MutationObserver: FakeObserver
+  })
+  await app.start()
+  const input = dom.window.document.querySelector('input[placeholder]')
+  const key = options => {
+    const event = new dom.window.KeyboardEvent('keydown', {
+      bubbles: true, cancelable: true, ...options
+    })
+    input.dispatchEvent(event)
+    assert.equal(event.defaultPrevented, false)
+  }
+  input.dispatchEvent(new dom.window.CompositionEvent('compositionstart'))
+  key({ key: 'Enter' })
+  key({ key: 'Tab' })
+  assert.equal(input.value, 'release')
+  input.dispatchEvent(new dom.window.CompositionEvent('compositionend'))
+  key({ key: 'Enter', isComposing: true })
+  key({ key: 'Enter', keyCode: 229 })
+  key({ key: 'Enter', repeat: true })
+  await Promise.resolve()
+  assert.deepEqual(storage.history, ['release notes'])
+  key({ key: 'Enter' })
+  await Promise.resolve()
+  assert.deepEqual(storage.history, ['release', 'release notes'])
+  app.stop()
+})
+
+test('Tab cycles through a stable set of candidates without moving focus or leaking to traQ', async () => {
+  const dom = searchFixture()
+  const document = dom.window.document
+  document.querySelector('._resultList_hash').remove()
+  const storage = createMemoryStorage(Core.DEFAULT_SETTINGS, ['release notes', 'release train'])
+  const app = createExSearchApp({
+    document, location: dom.window.location, storage, MutationObserver: FakeObserver
+  })
+  await app.start()
+  const input = document.querySelector('input[placeholder]')
+  input.focus()
+  input.setSelectionRange(input.value.length, input.value.length)
+  let nativeKeydowns = 0
+  input.addEventListener('keydown', () => { nativeKeydowns += 1 })
+  const tab = () => {
+    const event = new dom.window.KeyboardEvent('keydown', {
+      key: 'Tab', bubbles: true, cancelable: true
+    })
+    input.dispatchEvent(event)
+    assert.equal(event.defaultPrevented, true)
+    assert.equal(document.activeElement, input)
+    assert.equal(input.selectionStart, input.value.length)
+    assert.equal(input.selectionEnd, input.value.length)
+  }
+  tab()
+  assert.equal(input.value, 'release notes')
+  app.reconcile()
+  tab()
+  assert.equal(input.value, 'release train')
+  tab()
+  assert.equal(input.value, 'release notes')
+  assert.equal(nativeKeydowns, 0)
+  assert.equal(document.querySelectorAll('[data-ex-search-suggestion]').length, 2)
+
+  input.value = 'release t'
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  tab()
+  assert.equal(input.value, 'release train')
+  tab()
+  assert.equal(input.value, 'release train')
+
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter' }))
+  await Promise.resolve()
+  assert.equal(storage.history[0], 'release train')
+  app.stop()
+})
+
+test('Tab can select non-prefix suggestions and resets the cycle after focus leaves', async () => {
+  const dom = searchFixture()
+  const document = dom.window.document
+  document.querySelector('._resultList_hash').remove()
+  const storage = createMemoryStorage(Core.DEFAULT_SETTINGS, ['weekly release', 'old release'])
+  const app = createExSearchApp({
+    document, location: dom.window.location, storage, MutationObserver: FakeObserver
+  })
+  await app.start()
+  const input = document.querySelector('input[placeholder]')
+  input.focus()
+  input.setSelectionRange(input.value.length, input.value.length)
+  const tab = () => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+    key: 'Tab', bubbles: true, cancelable: true
+  }))
+  assert.equal(tab(), false)
+  assert.equal(input.value, 'weekly release')
+  input.blur()
+  input.focus()
+  assert.equal(tab(), false)
+  assert.equal(input.value, 'weekly release')
+  app.stop()
+})
+
+test('completion works with suggestions hidden and respects editing and keyboard navigation', async () => {
+  const dom = searchFixture()
+  const storage = createMemoryStorage({
+    ...Core.DEFAULT_SETTINGS, suggestionsEnabled: false
+  }, ['release notes'])
+  const app = createExSearchApp({
+    document: dom.window.document, location: dom.window.location,
+    storage, MutationObserver: FakeObserver
+  })
+  await app.start()
+  const document = dom.window.document
+  const input = document.querySelector('input[placeholder]')
+  const tab = options => {
+    const event = new dom.window.KeyboardEvent('keydown', {
+      key: 'Tab', bubbles: true, cancelable: true, ...options
+    })
+    input.dispatchEvent(event)
+    return event.defaultPrevented
+  }
+  assert.equal(document.querySelector('[data-ex-search-suggestions]').hidden, true)
+  assert.equal(document.querySelector('[data-ex-search-completion]').textContent, ' notes')
+  input.setSelectionRange(7, 7)
+  for (const modifier of ['shiftKey', 'ctrlKey', 'altKey', 'metaKey']) {
+    assert.equal(tab({ [modifier]: true }), false)
+  }
+  input.setSelectionRange(2, 2)
+  assert.equal(tab(), false)
+  input.setSelectionRange(0, 7)
+  assert.equal(tab(), false)
+  input.setSelectionRange(7, 7)
+  input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape' }))
+  assert.equal(document.querySelector('[data-ex-search-completion]').textContent, '')
+  assert.equal(tab(), false)
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  assert.equal(tab(), true)
+  assert.equal(input.value, 'release notes')
+  app.stop()
+})
+
 test('app lifecycle mounts once, batches mutations, follows input replacement, and cleans up', async () => {
   FakeObserver.instances = []
   const dom = searchFixture()
