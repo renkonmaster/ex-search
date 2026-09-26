@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: light-dark(#172033, #e7edf8);
+  background: light-dark(#f3f6fb, #11161e);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 10px; font-size: clamp(2.1rem, 7vw, 3.4rem); }
+h2 { font-size: 1.1rem; }
+.eyebrow { margin-bottom: 6px; color: #3988ee; font-size: 0.75rem; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; }
+section { margin: 18px 0; padding: 22px; border: 1px solid light-dark(#d9e1ed, #303b49); border-radius: 14px; background: light-dark(#fff, #19212c); }
+label { font-weight: 650; }
+input[type='number'] { width: 8rem; min-height: 42px; margin-top: 8px; padding: 0 10px; border: 1px solid light-dark(#bec9d8, #4a5767); border-radius: 8px; font: inherit; }
+.check-row { display: flex; gap: 12px; align-items: start; padding: 13px 0; border-top: 1px solid light-dark(#e6ebf2, #2c3642); cursor: pointer; }
+.check-row:first-of-type { border-top: 0; }
+.check-row input { width: 20px; height: 20px; margin-top: 2px; }
+.check-row span { display: grid; gap: 3px; }
+.check-row small, .hint { color: light-dark(#627188, #a6b2c3); font-size: 0.84rem; font-weight: 400; line-height: 1.5; }
+fieldset { display: flex; gap: 18px; margin: 0; padding: 0; border: 0; }
+legend { margin-bottom: 10px; font-weight: 650; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button { min-height: 42px; padding: 0 16px; border: 0; border-radius: 8px; color: #fff; background: #126ee8; font: inherit; font-weight: 650; cursor: pointer; }
+button.secondary { border: 1px solid light-dark(#bec9d8, #4a5767); color: inherit; background: transparent; }
+button.danger { background: #b83245; }
+button:hover { filter: brightness(1.08); }
+button:focus-visible, input:focus-visible { outline: 3px solid rgb(57 136 238 / 35%); outline-offset: 2px; }
+#status { min-height: 1.5em; color: #238353; font-weight: 650; }
+#status[data-error='true'] { color: #c83e52; }
+@media (max-width: 520px) { main { padding: 28px 0; } section { padding: 17px; } fieldset { flex-direction: column; gap: 9px; } }

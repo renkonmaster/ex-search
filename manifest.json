@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "ex-search",
+  "version": "0.1.0",
+  "minimum_chrome_version": "95",
+  "description": "traQのメッセージ検索に履歴、候補、絞り込み、強調表示を追加します。",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://q.trap.jp/*"],
+      "js": ["core.js", "dom.js", "app.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ex-search 設定</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">traQ search companion</p>
+        <h1>ex-search</h1>
+        <p>traQの検索履歴、候補、強調表示、表示中ページの並び順を設定します。</p>
+      </header>
+
+      <form id="settings-form">
+        <section aria-labelledby="history-heading">
+          <h2 id="history-heading">検索履歴</h2>
+          <label for="history-limit">保存する件数（1〜100）</label>
+          <input id="history-limit" type="number" min="1" max="100" step="1" required>
+          <p class="hint">traQ標準の履歴とは別に、検索クエリだけを端末へ保存します。</p>
+        </section>
+
+        <section aria-labelledby="features-heading">
+          <h2 id="features-heading">検索支援</h2>
+          <label class="check-row" for="suggestions-enabled">
+            <input id="suggestions-enabled" type="checkbox">
+            <span><strong>検索候補</strong><small>履歴・現在の画面・表示中の結果から候補を作ります。</small></span>
+          </label>
+          <label class="check-row" for="completion-enabled">
+            <input id="completion-enabled" type="checkbox">
+            <span><strong>Tab補完</strong><small>入力の続きがあるときだけTabキーで補完します。</small></span>
+          </label>
+          <label class="check-row" for="highlighting-enabled">
+            <input id="highlighting-enabled" type="checkbox">
+            <span><strong>検索語を強調</strong><small>表示中の検索結果に一致した文字列を強調します。</small></span>
+          </label>
+        </section>
+
+        <section aria-labelledby="ordering-heading">
+          <h2 id="ordering-heading">既定の並び順</h2>
+          <fieldset>
+            <legend>検索結果を開いたとき</legend>
+            <label><input type="radio" name="default-ordering" value="native"> traQ標準</label>
+            <label><input type="radio" name="default-ordering" value="relevance"> 表示中ページの関連度順</label>
+          </fieldset>
+          <p class="hint">関連度順はサーバー全体ではなく、traQが現在表示している1ページだけを並べ替えます。</p>
+        </section>
+
+        <div class="actions">
+          <button type="submit">設定を保存</button>
+          <button id="reset-defaults" type="button" class="secondary">既定値をフォームへ戻す</button>
+        </div>
+      </form>
+
+      <section aria-labelledby="clear-heading">
+        <h2 id="clear-heading">履歴の消去</h2>
+        <p>ex-searchが端末に保存した検索クエリをすべて消去します。</p>
+        <button id="clear-history" type="button" class="danger">検索履歴を消去</button>
+      </section>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="core.js"></script>
+    <script src="app.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
